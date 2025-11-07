@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function createNewApp() {
   return (
     <Link href="/create-new-app">
-        <button>hello</button>
+        <button>create new app</button>
     </Link>
   );
 }

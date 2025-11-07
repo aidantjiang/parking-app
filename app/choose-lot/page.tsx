@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function chooseLot() {
   return (
     <Link href="/create-new-app">
-        <button>hello</button>
+        <button>choose lot</button>
     </Link>
   );
 }
