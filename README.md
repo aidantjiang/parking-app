@@ -1,44 +1,121 @@
-# Parkingservices_lot_meter
-A website to assist parking attendants with lot management.
+# Parkingservices Lot Meter
 
-See Below For Website Formatting Guidelines (These will be flexible to fit the purposes of the app):
-CU Boulder Website Identity Standards: https://www.colorado.edu/imc/brand/branding-websites/website-identity-standards
+Production-grade Parking Attendant console built with Next.js 16. Attendants can authenticate, join/create events, claim lots by list or short code, adjust counts with optimistic UI, and monitor the All-Lots overview in real time.
 
-### CU Boulder Website Style Guide: https://styleguide.colorado.edu/colors.html
+## Prerequisites
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+- Node.js 18+
+- Firebase project with Authentication + Firestore (or local Emulator Suite)
 
-## Getting Started
+## Project structure
 
-First, run the development server:
+- `app/` — App Router pages for `/login`, `/events`, `/events/:id/*`.
+- `components/` — Core reusable UI (Pickers, Lot cards, counter, etc.).
+- `lib/firebase/` — Auth + Firestore clients and transactional helpers.
+- `lib/hooks/` — Client hooks for auth, events, lots, and role guards.
+- `scripts/` — Tooling such as the `seed-demo.mjs` bootstrapper.
+- `tests/` — Vitest suites for data helpers and the join/claim UI flow.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+See `ARCHITECTURE.md` for a diagram of the modules and data flow.
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` and fill in your Firebase project info:
+
+```
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required keys:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_FB_API_KEY`, `NEXT_PUBLIC_FB_AUTH_DOMAIN`, `NEXT_PUBLIC_FB_PROJECT_ID`, `NEXT_PUBLIC_FB_APP_ID`
+- `NEXT_PUBLIC_FB_FUNCTIONS_REGION` (optional, defaults to Firebase default)
+- `NEXT_PUBLIC_USE_EMULATORS=true` when targeting the local Firebase emulator
+- `FIREBASE_ADMIN_PROJECT_ID` + either `FIREBASE_ADMIN_CREDENTIALS` (JSON string) or `GOOGLE_APPLICATION_CREDENTIALS` (path) for the seed script
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> 🔒 Never commit raw service-account JSON (for example `firebase-admin.json`). Keep credentials in environment variables or local, ignored files referenced by `GOOGLE_APPLICATION_CREDENTIALS`.
 
-## Learn More
+## Local development
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Visit `http://localhost:3000/login` to sign in (email/password, register, or bypass). After successful auth you’re redirected to `/events`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+When using the Firebase Emulator Suite, launch it separately and set `NEXT_PUBLIC_USE_EMULATORS=true` so the client connects to the local Auth + Firestore endpoints.
 
-## Deploy on Vercel
+## Authentication
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Firebase Auth drives the login flow (`app/login/page.tsx`). You can:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Register/sign in with email & password (stored in Firebase Auth/Emulator).
+- Use the “Bypass for demo” button, which signs in anonymously for quick testing.
+- Extend with SAML/OAuth later—UI already surfaces a placeholder CTA.
+
+Every login/create action persists/reads the attendant profile from Firestore via `lib/firebase/firestore.ts#listenUserProfile`.
+
+## Using the Firebase Emulator Suite
+
+1. Ensure `firebase-tools` is installed (`npm install -g firebase-tools` or use `npx`).
+2. From the repo root, the included `firebase.json` already defines Firestore (8080) + Auth (9099) + Emulator UI (4000). Start them:
+   ```bash
+   firebase emulators:start
+   ```
+3. In `.env.local`, set `NEXT_PUBLIC_USE_EMULATORS=true` so the client SDK points to `localhost`.
+4. In a second terminal run `npm run dev` and open `http://localhost:3000/login`.
+5. Create accounts or use bypass—the auth + Firestore traffic now hits the emulators, visible in the Emulator UI dashboard at `http://localhost:4000`.
+
+## Firebase data layer
+
+The app currently targets Firestore using the helpers in `lib/firebase/firestore.ts`:
+
+- `listenEvent(eventId)` / `listenLots(eventId)` for real-time updates
+- `claimLot`, `releaseLot`, `adjustCount` run inside Firestore transactions
+- `createEvent` seeds initial lots with device codes
+
+To switch to Realtime Database instead of Firestore:
+
+1. Update `lib/firebase/firestore.ts` to point to RTDB refs (keep the same exported function signatures).
+2. Replace the transactional helpers with RTDB `runTransaction`.
+3. Adjust the seed script to write to RTDB paths (e.g., `/events`, `/lots`).
+
+Because the UI only imports the exported helpers, no component changes are required once those functions swap implementations.
+
+## Testing
+
+```bash
+npm run test
+```
+
+- `tests/services/lotLogic.test.ts` validates the transaction safety helpers.
+- `tests/flow/joinFlow.test.tsx` runs a lightweight RTL flow that covers join, claim, adjust, and overview UI behavior.
+
+## Seeding demo data
+
+Use the Firebase Admin SDK script to populate a demo event and lots (works against prod or the emulator):
+
+```bash
+FIREBASE_ADMIN_PROJECT_ID=my-project \
+FIREBASE_ADMIN_CREDENTIALS="$(cat serviceAccount.json)" \
+npm run seed
+```
+
+The script prints the created `eventId` so you can join it from the `/events` page.
+
+## Tooling & scripts
+
+- `npm run dev` – Next.js dev server (Turbopack).
+- `npm run build` / `npm start` – production build & serve.
+- `npm run test` – Vitest + Testing Library suites.
+- `npm run seed` – Seed demo data via Firebase Admin.
+
+## Firebase Security Rules (first pass)
+
+Rules should enforce:
+
+- Attendants can read events/lots they are assigned to and update counts only on lots they claimed.
+- Admins have read/write access for events they created.
+
+See `lib/firebase/firestore.ts` for the required constraints (claim transactions, count clamps, optimistic updates). Port these invariants to your Firestore/RTDB security rules.

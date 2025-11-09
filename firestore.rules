@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function hasRole(role) {
+      let profile = userProfile();
+      return isSignedIn()
+             && profile.data != null
+             && profile.data.role == role;
+    }
+    function isAdmin() {
+      return hasRole("admin");
+    }
+    function isAttendant() {
+      return hasRole("attendant");
+    }
+    // --- Events collection ---
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin()
+        && resource.data.createdBy == request.auth.uid;
+    }
+
+    // --- Lots collection ---
+    match /lots/{lotId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+
+      allow update: if isAdmin()
+        || (isAttendant()
+          && request.resource.data.diff(resource.data).changedKeys()
+                .hasOnly(["count","lastUpdatedBy","updatedAt"]));
+
+      allow delete: if isAdmin();
+    }
+
+    // --- Per-lot audit logs (written only by Cloud Functions/Admin SDK) ---
+    match /lots/{lotId}/logs/{logId} {
+      // OPEN READS (tighten to canManageLot(lotId) if desired)
+      allow read: if isSignedIn();
+      // No client writes; Cloud Functions (Admin SDK) bypass rules
+      allow create, update, delete: if false;
+    }
+
+    // --- Users collection (optional profile) ---
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+    }
+  }
+}
