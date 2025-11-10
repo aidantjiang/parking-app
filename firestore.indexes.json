@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "lots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventId", "mode": "ASCENDING" },
+        { "fieldPath": "group", "mode": "ASCENDING" },
+        { "fieldPath": "name", "mode": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
