@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isEventMember(eventId) {
+      return isAdmin() || (isSignedIn() && eventId in request.auth.token.events);
+    }
+
+    match /events/{eventId} {
+      allow read: if isEventMember(eventId);
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    match /lots/{lotId} {
+      allow read: if isEventMember(resource.data.eventId);
+      allow update: if isAdmin() || (
+        isEventMember(resource.data.eventId) &&
+        (
+          // Attendants may claim unclaimed lots or release their own claim
+          (!resource.data.claimedBy && request.resource.data.claimedBy == request.auth.uid) ||
+          resource.data.claimedBy == request.auth.uid
+        ) &&
+        request.resource.data.count >= 0 &&
+        request.resource.data.count <= resource.data.capacity
+      );
+      allow create: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

@@ -1,24 +1,41 @@
-import { Card } from "@/components/ui/Card";
-import Link from "next/link";
+"use client";
 
-const dummyEvents = [
-  { id: 1, name: "CU Boulder Game", date: "Nov 21, 2025" },
-  { id: 2, name: "Downtown Concert", date: "Nov 28, 2025" },
-];
+import Link from "next/link";
+import { PageShell } from "@/components/layout/pageshell";
+import { Button } from "@/components/ui/button";
+import { EventPicker } from "@/components/core/event-picker";
+import { useAuthContext } from "@/components/providers/auth-provider";
+import { Card } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 
 export default function EventsPage() {
+  const { user } = useAuthContext();
+  const router = useRouter();
+
   return (
-    <main className="max-w-3xl mx-auto py-10 px-4 space-y-6">
-      <h1 className="text-2xl font-bold">Your Events</h1>
-      <div className="grid gap-4">
-        {dummyEvents.map((e) => (
-          <Link key={e.id} href={`/events/${e.id}`}>
-            <Card title={e.name} subtitle={e.date}>
-              Manage parking and attendants
-            </Card>
-          </Link>
-        ))}
+    <PageShell heading="Join an Event" subheading="Choose adventure">
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <Card title="1. Authenticate" subtitle="Campus or demo access">
+          Sign in or hit demo mode. Admins can enable SAML once campus gives metadata.
+        </Card>
+        <Card title="2. Claim device" subtitle="Vision node pairing">
+          Select your event and claim the lot that matches the device short code.
+        </Card>
+        <Card title="3. Go live" subtitle="Realtime counts">
+          Use the Home screen to sync counts, view overview, or release your claim.
+        </Card>
       </div>
-    </main>
+
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-onyx-500">Tap an event to jump into the claim flow.</p>
+        {user?.role === "admin" && (
+          <Link href="/events/create">
+            <Button variant="primary">Create Event</Button>
+          </Link>
+        )}
+      </div>
+
+      <EventPicker onSelect={(event) => router.push(`/events/${event.id}/claim`)} />
+    </PageShell>
   );
 }

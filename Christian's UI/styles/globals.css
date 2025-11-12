@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background-color: #fdf8ed;
+  font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  @apply bg-buff-50 text-onyx-700 antialiased;
+}
+
+.cu-glow {
+  box-shadow: 0 0 50px rgba(153, 122, 56, 0.25);
+}

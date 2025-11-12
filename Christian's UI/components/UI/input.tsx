@@ -1,15 +1,24 @@
+import { cn } from "@/utils/cn";
+
 type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
+  hint?: string;
+  error?: string;
 };
 
-export function Input({ label, ...props }: InputProps) {
+export function Input({ label, hint, error, className, ...props }: InputProps) {
   return (
-    <div className="space-y-1">
-      {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+    <label className="flex w-full flex-col space-y-1 text-sm">
+      {label && <span className="font-semibold text-onyx-700">{label}</span>}
       <input
         {...props}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        className={cn(
+          "rounded-2xl border border-onyx-500/15 bg-white px-4 py-2 text-base shadow-sm transition placeholder:text-onyx-500/50 focus:border-primary-500 focus:ring-2 focus:ring-primary-200",
+          error && "border-danger focus:ring-danger/30",
+          className
+        )}
       />
-    </div>
+      {(hint || error) && <span className={cn("text-xs", error ? "text-danger" : "text-onyx-500/70")}>{error ?? hint}</span>}
+    </label>
   );
 }
